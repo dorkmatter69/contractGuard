@@ -1,5 +1,7 @@
 # Threat model
 
+> Baseline 0.1 design. Implemented 0.2 changes and remaining release gates are tracked in [status](status.md), [deployment](deployment.md), and [ADR 0004](adr/0004-shared-control-plane.md). Where baseline limitations differ, those documents supersede them.
+
 ## Assets and assumptions
 
 Protect delegated authority, controlled resources, provider credentials, execution uniqueness, acceptance state and evidence. Agents, prompts, artifacts, tool outputs and inbound comments are untrusted. Operator host, configured tool/validator code, OS and database administrators are trusted in the local MVP. A malicious operator can issue authority or rewrite storage. This is a library, not an OS sandbox or authentication service.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "contractguard"
-version = "0.1.0"
+version = "0.2.0"
 description = "Framework-independent governed execution reference MVP"
 requires-python = ">=3.11"
 dependencies = []
@@ -14,3 +14,8 @@ contractguard-demo = "contractguard.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["contractguard*"]
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.2,<4"]
+analytics = ["duckdb>=1.2,<2"]
+server = ["gunicorn>=23,<24"]

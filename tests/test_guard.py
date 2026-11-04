@@ -85,7 +85,7 @@ class GovernanceTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): self.call()
         with self.assertRaises(Denied): self.call()
         with self.guard.tx() as db:
-            self.assertEqual(db.execute("SELECT spent FROM mandates WHERE id='root'").fetchone()[0], 3)
+            self.assertEqual(db.execute("SELECT spent FROM mandates WHERE id='root'").fetchone()['spent'], 3)
 
     def test_restart_replay(self):
         self.call()
@@ -151,7 +151,7 @@ class GovernanceTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.guard.submit('a', 'parent', {}, {'broken/v1': broken})
         with self.guard.tx() as db:
-            self.assertEqual(db.execute("SELECT state FROM tickets WHERE id='t'").fetchone()[0], 'RUNNING')
+            self.assertEqual(db.execute("SELECT state FROM tickets WHERE id='t'").fetchone()['state'], 'RUNNING')
 
     def test_maximum_delegation_depth(self):
         self.child(max_depth=1)

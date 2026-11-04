@@ -1,5 +1,7 @@
 # Development and operations
 
+> Baseline 0.1 design. Implemented 0.2 changes and remaining release gates are tracked in [status](status.md), [deployment](deployment.md), and [ADR 0004](adr/0004-shared-control-plane.md). Where baseline limitations differ, those documents supersede them.
+
 ## Local setup
 
 Use Python 3.11 or newer. Run `python3 -m unittest discover -s tests -v` and `python3 -m contractguard` from repository root. Optional editable installation and command are in the README. No `.env`, API key or network service is required. For a persistent workflow, pass a filesystem path to `Guard`; `:memory:` is unsupported because methods use separate connections.

@@ -1,5 +1,7 @@
 # Product requirements
 
+> Baseline 0.1 design. Implemented 0.2 changes and remaining release gates are tracked in [status](status.md), [deployment](deployment.md), and [ADR 0004](adr/0004-shared-control-plane.md). Where baseline limitations differ, those documents supersede them.
+
 ## Problem and users
 
 Operators need to delegate work to agents while bounding authority and resource use and retaining verifiable acceptance evidence. Initial users are agent platform developers and internal workflow teams. The first demonstrator is a synthetic episode-validation workflow; it establishes no robotics performance claim or commercial demand.

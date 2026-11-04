@@ -1,5 +1,7 @@
 # Architecture
 
+> Baseline 0.1 design. Implemented 0.2 changes and remaining release gates are tracked in [status](status.md), [deployment](deployment.md), and [ADR 0004](adr/0004-shared-control-plane.md). Where baseline limitations differ, those documents supersede them.
+
 ## Boundary and data flow
 
 ```mermaid

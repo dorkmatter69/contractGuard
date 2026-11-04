@@ -2,7 +2,7 @@
 
 Framework-independent governance and proof-carrying execution for agents.
 
-**Status: working local reference MVP, not a production security boundary.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates enforceable governance logic when operated by a trusted host. It does not sandbox agents or authenticate network requests.
+**Status: 0.2 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated, single-tenant WSGI API. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
 
 ## What works
 
@@ -12,6 +12,9 @@ Framework-independent governance and proof-carrying execution for agents.
 - Hash-linked evidence receipts with input/output commitments and policy/tool versions.
 - Tickets, execution assignments, deterministic versioned validators, and acceptance/rejection receipts.
 - Tested Deep Agents tool-call bridge and DeepSeek Harness Mandate/Ticket/Assignment normalization bridge.
+- Assignment-bound API calls, one-use exact-action approvals, cancellation and confirmed-result reconciliation.
+- Optional PostgreSQL transactional backend and read-only DuckDB snapshot analytics (dependency-backed tests in CI).
+- Authenticated operator/agent API, HTTP client, container setup and HMAC evidence checkpoints.
 - Fail-closed interfaces for future ZKP and payment providers.
 
 ## Quick start
@@ -34,7 +37,7 @@ python -m pip install -e .
 contractguard-demo
 ```
 
-Setuptools is a build dependency; installation may need internet access. Runtime does not.
+Setuptools is a build dependency; installation may need internet access. The core runtime does not. Optional server/database/analytics extras do.
 
 ## Use the core
 
@@ -68,8 +71,8 @@ Costs are integer **resource credits**, not USD. The trusted tool registry sets 
 | ZKP | Statement protocol + unavailable backend | Circuit, prover, verification key management and adversarial proof tests |
 | Payments / x402 | Protocol + explicitly disabled backend | Provider authorization, real ledger, idempotent settlement and reconciliation |
 | Blockchain | Design boundary only | Escrow contracts, audits, chain replay protection and settlement integration |
-| PostgreSQL | Migration design | Backend implementation and multi-process migration tests |
-| DuckDB | Analytics design | Read-only receipt export and query adapter |
+| PostgreSQL | Optional Psycopg backend; serialized transaction lock; additive schema setup | Live CI verification, operational backup/restore fencing, finer-grained locking |
+| DuckDB | Verified snapshot aggregation using an isolated in-memory database | Dependency-backed CI result, richer dashboard and telemetry |
 
 The bridge API does not claim automatic interception of built-in filesystem, shell, or delegated framework tools. The host must route **every protected operation** through the gateway and isolate credentials. Events, prompts and issue comments are context, never authority.
 
@@ -92,13 +95,13 @@ The bridge API does not claim automatic interception of built-in filesystem, she
 
 A hash chain detects edits relative to the stored chain. A database administrator can rewrite the entire chain or remove a suffix; externally anchored signed checkpoints are required to detect that. Receipts are not signatures or ZK proofs. Passing the example validator proves only that the supplied JSON satisfies a rule, not that a physical simulation ran or that a real-world task succeeded.
 
-Revocation prevents new admissions and cached-result retrieval; it cannot stop an already admitted external operation. The initial MVP does not bind each tool call to an assignment lease: tool authority is mandate-bound, while assignment expiry gates submission. See the threat model before integration.
+Revocation prevents new admissions and cached-result retrieval; it cannot stop an already admitted external operation. The service requires a live assignment for every tool call. The trusted in-process SDK retains optional mandate-only execution for compatibility. Cancellation or expiry blocks service replay as well as new admissions. See the threat model before integration.
 
 ## Development and CI
 
-Run the tests and demo above. GitHub Actions repeats them on Python 3.11–3.14, then installs the package and invokes the installed command from outside the source directory. CI is configured, not a claim that remote runs have passed. No cloud secrets are needed.
+Run the tests and demo above. GitHub Actions repeats them on Python 3.11–3.14, then installs the package and invokes the installed command from outside the source directory. CI is configured, not a claim that remote runs have passed. No cloud secrets are needed. The database-contract job installs PostgreSQL/analytics extras and runs the same governance suite against PostgreSQL 17 plus a real DuckDB query.
 
-Before production: implement authenticated service boundaries, process isolation, provider-enforced resource limits, PostgreSQL durability/backup operations, external evidence checkpoints, scoped approvals and reconciliation. See the PRD release gates.
+Before production: deploy TLS, process isolation and provider-enforced resource limits; verify PostgreSQL operations and dependency-backed CI; complete restore fencing, external checkpoint custody and provider-authenticated reconciliation. The implemented approvals and operator reconciliation API do not resolve provider uncertainty by themselves. See the PRD release gates.
 
 ## References and attribution
 
