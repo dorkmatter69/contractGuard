@@ -74,12 +74,17 @@ class CrossLayerTests(unittest.TestCase):
             guard.assign('assignment', 'ticket', 'worker', mandate.expires)
             ledger = EconomicLedger(guard)
             asset = f'eip155:31337/erc20:{token.address}'
-            ledger.allocate(MoneyBudget(mandate.id, 'evm-escrow', asset, 100, (payee,)))
+            ledger.allocate(MoneyBudget(mandate.id, 'evm-escrow', asset, 200, (payee,)))
             expires = now() + 3600
             ledger.reserve('order', mandate.id, 'worker', 'assignment', 'ticket', 'evm-escrow', asset, 100, payee, expires)
+            guard.create_ticket('refund-ticket', mandate.id, 'episode/v1')
+            guard.assign('refund-assignment', 'refund-ticket', 'worker', mandate.expires)
+            refund_expires = now() + 600
+            ledger.reserve('refund-order', mandate.id, 'worker', 'refund-assignment', 'refund-ticket',
+                           'evm-escrow', asset, 100, payee, refund_expires)
             result = guard.execute(mandate.id, 'worker', 'simulate', {}, 'call', assignment='assignment')
-            mined(token.functions.mint(payer, 100).transact({'from': payer}))
-            mined(token.functions.approve(escrow.address, 100).transact({'from': payer}))
+            mined(token.functions.mint(payer, 200).transact({'from': payer}))
+            mined(token.functions.approve(escrow.address, 200).transact({'from': payer}))
             mh, vh = '0x' + digest(asdict(mandate)), '0x' + digest('episode/v1')
             funded = mined(escrow.functions.fund(payee, validator.address, 100, expires, mh, vh).transact({'from': payer}))
             event = escrow.events.Funded().process_receipt(funded)[0]['args']
@@ -114,14 +119,43 @@ class CrossLayerTests(unittest.TestCase):
                             replace(expected, artifact_hash='0x' + 'ff' * 32)):
                 with self.assertRaises(ValueError):
                     verify_settlement(w3, escrow.abi, released.transactionHash, changed, finalized=False)
-            with self.assertRaises(Exception):
-                escrow.functions.release(task_id, artifact_hash, binding.deadline, signed.signature).transact({'from': payer})
+            # Mine the exact replay with enough gas, then independently establish
+            # that it reverted because the task was already settled.
+            original = w3.eth.get_transaction(released.transactionHash)
+            replay_hash = escrow.functions.release(task_id, artifact_hash, binding.deadline, signed.signature).transact(
+                {'from': payer, 'gas': original['gas']})
+            replay = w3.eth.wait_for_transaction_receipt(replay_hash)
+            self.assertEqual(replay.status, 0)
+            from contractguard.chain_verification import verify_replay_rejection, verify_refund
+            rejected = verify_replay_rejection(w3, escrow.abi, released.transactionHash, replay_hash, expected, finalized=False)
+            self.assertTrue(rejected['verified'])
+            # Simulate the operator-facing no-key funding script on the actual
+            # local RPC. It must compile and run without accessing a wallet key.
+            script_env = dict(os.environ, ESCROW_ADDRESS=escrow.address, PAYER_ADDRESS=payer,
+                              PAYEE_ADDRESS=payee, VALIDATOR_ADDRESS=validator.address, TASK_AMOUNT='100',
+                              TASK_EXPIRES=str(refund_expires), MANDATE_HASH=mh, VALIDATOR_HASH=vh)
+            subprocess.run(['forge', 'script', 'script/Scenarios.s.sol:FundScenario', '--rpc-url',
+                            f'http://127.0.0.1:{port}', '--sender', payer],
+                           cwd=root / 'contracts', env=script_env, capture_output=True, check=True, timeout=120)
+            refunded_funding = mined(escrow.functions.fund(payee, validator.address, 100, refund_expires, mh, vh).transact({'from': payer}))
+            refund_task = escrow.events.Funded().process_receipt(refunded_funding)[0]['args']['taskId']
+            refund_state = escrow.functions.tasks(refund_task).call()
+            refund_expected = replace(expected, task_id='0x' + refund_task.hex(), expires=refund_expires,
+                                      settlement_nonce=refund_state[8])
+            w3.provider.make_request('evm_increaseTime', [max(0, refund_expires - now())])
+            w3.provider.make_request('evm_mine', [])
+            refund_receipt = mined(escrow.functions.refund(refund_task).transact({'from': payer}))
+            refund_checked = verify_refund(w3, escrow.abi, refund_receipt.transactionHash, refund_expected, finalized=False)
+            self.assertTrue(refund_checked['verified'])
+            self.assertEqual(token.functions.balanceOf(payer).call(), 100)
+            self.assertEqual(token.functions.balanceOf(payee).call(), 100)
+            self.assertEqual(token.functions.balanceOf(escrow.address).call(), 0)
             self.assertTrue(guard.verify_receipts())
             if os.environ.get('CROSS_LAYER_REPORT'):
                 Path(os.environ['CROSS_LAYER_REPORT']).write_text(json.dumps({
                     'network': 'ephemeral-local-anvil', 'chain_id': 31337, 'is_testnet_deployment': False,
                     'escrow': escrow.address, 'token': token.address, 'task_id': task_id.hex(),
-                    'artifact_hash': artifact_hash, 'receipts': receipts, 'independent_verification': independent, 'verified': True}, indent=2))
+                    'artifact_hash': artifact_hash, 'receipts': receipts, 'independent_verification': independent, 'replay_rejection': rejected, 'expiry_refund': refund_checked, 'verified': True}, indent=2))
 
     @staticmethod
     def stop(node):
