@@ -8,6 +8,7 @@ import hmac
 import json
 from dataclasses import dataclass
 from .core import Denied, Mandate, canonical
+from .economics import EconomicLedger, EscrowBinding, MoneyBudget
 
 
 @dataclass(frozen=True)
@@ -34,6 +35,7 @@ class Application:
             for row in db.execute('SELECT body FROM mandates'):
                 if json.loads(row['body'])['principal'] != tenant:
                     raise ValueError('database belongs to another tenant')
+        self.economics = EconomicLedger(guard)
 
     def authenticate(self, header):
         if not header.startswith('Bearer '):
@@ -65,6 +67,10 @@ class Application:
                 g.cancel(body['ticket'])
             elif path == '/v1/reconcile':
                 g.reconcile(**body)
+            elif path == '/v1/economic/budgets':
+                self.economics.allocate(MoneyBudget(**body))
+            elif path == '/v1/economic/acceptance':
+                return self.economics.acceptance(body['id'], EscrowBinding(**body['binding']))
             elif path == '/v1/billing/intents':
                 if self.billing is None:
                     raise Denied('billing is disabled')
@@ -77,6 +83,10 @@ class Application:
         if identity.role != 'agent':
             raise Denied('role denied')
         # Reject caller identity overrides, including unknown fields.
+        if path == '/v1/economic/commitments':
+            if 'agent' in body:
+                raise Denied('identity comes from token')
+            return self.economics.reserve(agent=identity.agent, **body)
         if path == '/v1/execute':
             allowed = {'mandate', 'tool', 'arguments', 'key', 'assignment', 'approval'}
             if set(body) - allowed or not body.get('assignment'):

@@ -1,5 +1,7 @@
 # Hosted tenants and Stripe
 
+The selected hybrid rail architecture is in [ADR 0006](adr/0006-hybrid-economic-control-plane.md). Stripe is customer billing; Solidity escrow and stablecoin settlement are a separate first-class path. This document describes the existing test-only PaymentIntent sample, not SaaS subscriptions or supplier settlement.
+
 ## Current scope
 
 The target is a multi-tenant hosted platform. The implementation uses a shared authenticated front door with an independently bound database per tenant. Test-mode Stripe billing is optional for each tenant. It is not a production SaaS release, supplier payout implementation, escrow system or subscription platform.

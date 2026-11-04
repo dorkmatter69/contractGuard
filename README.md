@@ -2,7 +2,21 @@
 
 Framework-independent governance and proof-carrying execution for agents.
 
-**Status: 0.3 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated WSGI API with a hosted multi-tenant router and isolated tenant databases. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
+**Status: 0.4 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated WSGI API with a hosted multi-tenant router and isolated tenant databases. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
+
+## Hybrid payment architecture
+
+ContractGuard authorizes economic activity independently of payment transport. Blockchain-native escrow is first-class; Stripe is customer billing. See [blockchain prototype and verification limits](docs/blockchain.md) and [ADR 0006](docs/adr/0006-hybrid-economic-control-plane.md).
+
+| Capability | Selected rail |
+|---|---|
+| SaaS subscriptions | Stripe Billing (planned) |
+| Fiat supplier payouts | Stripe Connect (optional, planned) |
+| Programmable escrow / outcome settlement | Solidity + test token on Base Sepolia (source/tests authored; not compiled or deployed here) |
+| Pay-per-use agent APIs | x402 (future adapter) |
+| Identity / reputation | ERC-8004 (future adapter) |
+| Resource and monetary authority | Separate off-chain hierarchical ledgers |
+| Acceptance | Deterministic validators and signed receipts; ZKP future |
 
 ## What works
 
@@ -15,6 +29,7 @@ Framework-independent governance and proof-carrying execution for agents.
 - Assignment-bound API calls, one-use exact-action approvals, cancellation and confirmed-result reconciliation.
 - Optional PostgreSQL transactional backend and read-only DuckDB snapshot analytics (dependency-backed tests in CI).
 - Authenticated operator/agent API, HTTP client, container setup and HMAC evidence checkpoints.
+- Rail-neutral monetary budgets, hierarchical commitments and accepted-artifact EIP-712 data preparation.
 - Hosted tenant routing and optional Stripe test-mode customer billing with verified, deduplicated webhooks. See [hosted setup and Stripe boundaries](docs/hosted-and-stripe.md).
 - Fail-closed interfaces for future ZKP and payment providers.
 
@@ -72,7 +87,7 @@ Costs are integer **resource credits**, not USD. The trusted tool registry sets 
 | ZKP | Statement protocol + unavailable backend | Circuit, prover, verification key management and adversarial proof tests |
 | Stripe | Test-only unconfirmed PaymentIntent creation, exact request binding, signed webhook processing | Live sandbox verification, customer confirmation UI, refunds/disputes, monetary reconciliation |
 | Supplier settlement / x402 | Protocol + explicitly disabled backend | Stripe Connect model, provider authorization and monetary ledger |
-| Blockchain | Design boundary only | Escrow contracts, audits, chain replay protection and settlement integration |
+| Blockchain | Solidity escrow/test-token/deployment source, Foundry tests, Python typed-data preparation | Foundry execution, trusted observer/signer/RPC integration, testnet deployment, security review |
 | PostgreSQL | Optional Psycopg backend; serialized transaction lock; additive schema setup | Live CI verification, operational backup/restore fencing, finer-grained locking |
 | DuckDB | Verified snapshot aggregation using an isolated in-memory database | Dependency-backed CI result, richer dashboard and telemetry |
 
@@ -82,6 +97,8 @@ The bridge API does not claim automatic interception of built-in filesystem, she
 
 | Path | Purpose |
 |---|---|
+| `contracts/` | Solidity escrow, toy token, Foundry tests and guarded testnet/local deploy script |
+| `contractguard/economics.py` | Separate monetary authority and typed-data preparation |
 | `contractguard/core.py` | Authority, storage transactions, gateway, lifecycle and receipts |
 | `contractguard/adapters.py` | Explicit framework-neutral bridge implementations |
 | `contractguard/validators.py` | Example deterministic acceptance rule |
