@@ -50,6 +50,7 @@ class CrossLayerTests(unittest.TestCase):
         # Public fixture key used only for local signatures, never a funded wallet.
         validator = Account.from_key((1).to_bytes(32, 'big'))
         receipts = []
+        compiled, deployments = {}, {}
         def mined(tx):
             receipt = w3.eth.wait_for_transaction_receipt(tx, timeout=20)
             self.assertEqual(receipt.status, 1)
@@ -59,8 +60,10 @@ class CrossLayerTests(unittest.TestCase):
             return receipt
         def deploy(name, *args):
             artifact = json.loads((root / 'contracts' / 'out' / f'{name}.sol' / f'{name}.json').read_text())
+            compiled[name] = artifact
             factory = w3.eth.contract(abi=artifact['abi'], bytecode=artifact['bytecode']['object'])
             receipt = mined(factory.constructor(*args).transact({'from': payer}))
+            deployments[name] = receipt.transactionHash
             return w3.eth.contract(address=receipt.contractAddress, abi=artifact['abi'])
         token = deploy('TestUSD'); escrow = deploy('TaskEscrow', token.address)
         now = lambda: w3.eth.get_block('latest').timestamp
@@ -151,11 +154,28 @@ class CrossLayerTests(unittest.TestCase):
             self.assertEqual(token.functions.balanceOf(payee).call(), 100)
             self.assertEqual(token.functions.balanceOf(escrow.address).call(), 0)
             self.assertTrue(guard.verify_receipts())
+            from contractguard.testnet_report import collect_report
+            from contractguard.chain_verification import hex_value
+            manifest = {
+                'commit': subprocess.check_output(['git','rev-parse','HEAD'], cwd=root, text=True).strip(),
+                'expected': asdict(expected), 'refund_expected': asdict(refund_expected),
+                'mandate': json.loads(json.dumps(asdict(mandate))), 'artifact': result,
+                'validator_version': 'episode/v1', 'ticket': 'ticket', 'tool_call_key': 'call',
+                'evidence_snapshot': guard.snapshot(),
+                'transactions': {'token_deployment': hex_value(deployments['TestUSD']),
+                    'escrow_deployment': hex_value(deployments['TaskEscrow']),
+                    'funding': hex_value(funded.transactionHash), 'settlement': hex_value(released.transactionHash),
+                    'replay': hex_value(replay_hash), 'refund_funding': hex_value(refunded_funding.transactionHash),
+                    'refund': hex_value(refund_receipt.transactionHash)}}
+            full_report = collect_report(w3, {'token': compiled['TestUSD'], 'escrow': compiled['TaskEscrow']}, manifest, require_testnet=False)
+            self.assertTrue(full_report['compiled_runtime_verified'])
+            self.assertFalse(full_report['public_testnet_scenarios_verified'])
+            self.assertFalse(full_report['release_gate_complete'])
             if os.environ.get('CROSS_LAYER_REPORT'):
                 Path(os.environ['CROSS_LAYER_REPORT']).write_text(json.dumps({
                     'network': 'ephemeral-local-anvil', 'chain_id': 31337, 'is_testnet_deployment': False,
                     'escrow': escrow.address, 'token': token.address, 'task_id': task_id.hex(),
-                    'artifact_hash': artifact_hash, 'receipts': receipts, 'independent_verification': independent, 'replay_rejection': rejected, 'expiry_refund': refund_checked, 'verified': True}, indent=2))
+                    'artifact_hash': artifact_hash, 'receipts': receipts, 'independent_verification': independent, 'replay_rejection': rejected, 'expiry_refund': refund_checked, 'validation_report': full_report, 'verified': True}, indent=2))
 
     @staticmethod
     def stop(node):

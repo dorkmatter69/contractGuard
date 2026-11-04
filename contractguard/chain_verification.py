@@ -162,3 +162,23 @@ def _result(receipt, expected, scenario, finalized):
             'block_number': receipt['blockNumber'], 'block_hash': hex_value(receipt['blockHash']),
             'escrow': expected.escrow, 'token': expected.token, 'task_id': expected.task_id,
             'finalized': finalized, 'verified': True}
+
+
+def verify_funding(w3, abi, transaction_hash, expected, *, finalized=True):
+    receipt, contract = _receipt(w3, abi, transaction_hash, expected, finalized)
+    if receipt['status'] != 1:
+        raise ValueError('funding transaction failed')
+    task = contract.functions.tasks(expected.task_id).call(block_identifier=receipt['blockNumber'])
+    _terms(task, expected)
+    events = [event for event in contract.events.Funded().process_receipt(receipt)
+              if event['address'].lower() == expected.escrow.lower()
+              and hex_value(event['args']['taskId']).lower() == expected.task_id.lower()]
+    if len(events) != 1:
+        raise ValueError('one exact funding event required')
+    event = events[0]['args']
+    if (event['payer'].lower() != expected.payer.lower() or event['payee'].lower() != expected.payee.lower()
+            or event['validator'].lower() != expected.validator.lower() or event['amount'] != expected.amount
+            or event['expires'] != expected.expires or hex_value(event['mandateHash']).lower() != expected.mandate_hash.lower()
+            or hex_value(event['validatorHash']).lower() != expected.validator_hash.lower()):
+        raise ValueError('funding event terms mismatch')
+    return _result(receipt, expected, 'funding', finalized)
