@@ -71,6 +71,7 @@ class Guard:
                 agent TEXT NOT NULL, expires INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL,
                 expires BIGINT NOT NULL, consumed INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS service_metadata(id INTEGER PRIMARY KEY, tenant TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS schema_version(version INTEGER PRIMARY KEY);
             INSERT INTO schema_version(version) VALUES(2) ON CONFLICT DO NOTHING;
             ''')

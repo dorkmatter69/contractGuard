@@ -31,6 +31,22 @@ class PlatformTests(Fixture):
     def payload(self):
         return dict(mandate='root', tool='run', arguments={}, key='k', assignment='lease')
 
+    def test_malformed_http_body(self):
+        env = {'HTTP_AUTHORIZATION': 'Bearer worker-secret', 'REQUEST_METHOD': 'POST',
+               'CONTENT_TYPE': 'application/json', 'CONTENT_LENGTH': '7',
+               'wsgi.input': io.BytesIO(b'notjson'), 'PATH_INFO': '/v1/execute'}
+        statuses = []
+        list(self.app(env, lambda status, headers: statuses.append(status)))
+        self.assertEqual(statuses[0], '400 Bad Request')
+
+    def test_huge_body_refused_without_read(self):
+        env = {'HTTP_AUTHORIZATION': 'Bearer worker-secret', 'REQUEST_METHOD': 'POST',
+               'CONTENT_TYPE': 'application/json', 'CONTENT_LENGTH': '1000000',
+               'wsgi.input': None, 'PATH_INFO': '/v1/execute'}
+        statuses = []
+        list(self.app(env, lambda status, headers: statuses.append(status)))
+        self.assertEqual(statuses[0], '400 Bad Request')
+
     def test_authenticated_execution(self):
         self.assertEqual(self.request('/v1/execute', self.payload())[0], '200')
         self.assertEqual(self.request('/v1/execute', self.payload(), 'bad')[0], '401')

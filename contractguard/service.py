@@ -26,6 +26,10 @@ class Application:
         self.guard, self.tenant, self.tokens = guard, tenant, dict(tokens)
         self.validators, self.max_body = dict(validators), max_body
         with guard.tx() as db:
+            db.execute('INSERT INTO service_metadata(id,tenant) VALUES(1,?) ON CONFLICT DO NOTHING', (tenant,))
+            configured = db.execute('SELECT tenant FROM service_metadata WHERE id=1').fetchone()
+            if configured['tenant'] != tenant:
+                raise ValueError('database already bound to another tenant')
             for row in db.execute('SELECT body FROM mandates'):
                 if json.loads(row['body'])['principal'] != tenant:
                     raise ValueError('database belongs to another tenant')

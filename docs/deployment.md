@@ -22,7 +22,7 @@ Use a separate database and service deployment per tenant. Provision separate hi
 }
 ```
 
-These angle-bracket values are placeholders. Generate at least 32 random bytes per token (for example with Python `secrets.token_urlsafe(32)`), compute SHA256 of the encoded token, and substitute actual hashes. Do not commit token values. Configure `CONTRACTGUARD_TENANT` and `CONTRACTGUARD_DATABASE` (an absolute SQLite path or PostgreSQL URI). The application refuses startup if existing mandates belong to a different tenant. Use TLS and request/rate/time limits at a reverse proxy. Authorization uses static configuration; rotate/revoke tokens by replacing configuration and restarting every worker. Do not log Authorization headers.
+These angle-bracket values are placeholders. Generate at least 32 random bytes per token (for example with Python `secrets.token_urlsafe(32)`), compute SHA256 of the encoded token, and substitute actual hashes. Do not commit token values. Configure `CONTRACTGUARD_TENANT` and `CONTRACTGUARD_DATABASE` (an absolute SQLite path or PostgreSQL URI). The application persistently binds the database to its configured tenant and refuses startup for a different tenant or existing foreign mandates. Use TLS and request/rate/time limits at a reverse proxy. Authorization uses static configuration; rotate/revoke tokens by replacing configuration and restarting every worker. Do not log Authorization headers.
 
 ```sh
 gunicorn --bind 127.0.0.1:8080 --workers 2 'contractguard.server:create_app()'
