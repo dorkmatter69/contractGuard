@@ -2,7 +2,13 @@
 
 Framework-independent governance and proof-carrying execution for agents.
 
-**Status: 0.4 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated WSGI API with a hosted multi-tenant router and isolated tenant databases. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
+**Status: 0.5 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated WSGI API with a hosted multi-tenant router and isolated tenant databases. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
+
+## Verified v0.5 milestone
+
+[CI run 41870669068](https://github.com/dorkmatter69/contractGuard/actions/runs/41870669068) verified commit `a2b1254`: **15 Foundry tests passed**, **103 Python/database tests passed** (one cross-layer skip covered by a dedicated job), and **one real Anvil/PostgreSQL cross-layer test passed**. Python 3.11–3.14 package/test jobs also passed. The [Anvil transaction/gas artifact](https://github.com/dorkmatter69/contractGuard/actions/runs/41870669068/artifacts/13343274247) is an ephemeral local-chain report, **not Base Sepolia deployment evidence**.
+
+Acceptance v2 explicitly binds task, chain, contract, artifact, authorized validator and settlement nonce. See [v0.5 verification and deployment gates](docs/v0.5-validation.md). Base Sepolia remains undeployed: the proposed keystore account is absent and the RPC environment variable is unset.
 
 ## Hybrid payment architecture
 
@@ -12,7 +18,7 @@ ContractGuard authorizes economic activity independently of payment transport. B
 |---|---|
 | SaaS subscriptions | Stripe Billing (planned) |
 | Fiat supplier payouts | Stripe Connect (optional, planned) |
-| Programmable escrow / outcome settlement | Solidity + test token on Base Sepolia (source/tests authored; not compiled or deployed here) |
+| Programmable escrow / outcome settlement | Solidity + test token on Base Sepolia (compiled/tested in CI; not deployed to Base Sepolia) |
 | Pay-per-use agent APIs | x402 (future adapter) |
 | Identity / reputation | ERC-8004 (future adapter) |
 | Resource and monetary authority | Separate off-chain hierarchical ledgers |
@@ -87,7 +93,7 @@ Costs are integer **resource credits**, not USD. The trusted tool registry sets 
 | ZKP | Statement protocol + unavailable backend | Circuit, prover, verification key management and adversarial proof tests |
 | Stripe | Test-only unconfirmed PaymentIntent creation, exact request binding, signed webhook processing | Live sandbox verification, customer confirmation UI, refunds/disputes, monetary reconciliation |
 | Supplier settlement / x402 | Protocol + explicitly disabled backend | Stripe Connect model, provider authorization and monetary ledger |
-| Blockchain | Solidity escrow/test-token/deployment source, Foundry tests, Python typed-data preparation | Foundry execution, trusted observer/signer/RPC integration, testnet deployment, security review |
+| Blockchain | CI-tested escrow/token, Foundry adversarial tests, real Anvil/PostgreSQL integration and read-only settlement verifier | Testnet signer/RPC configuration, funded-task observer, testnet deployment and security review |
 | PostgreSQL | Optional Psycopg backend; serialized transaction lock; additive schema setup | Live CI verification, operational backup/restore fencing, finer-grained locking |
 | DuckDB | Verified snapshot aggregation using an isolated in-memory database | Dependency-backed CI result, richer dashboard and telemetry |
 

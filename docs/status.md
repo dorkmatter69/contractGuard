@@ -2,7 +2,13 @@
 
 This file is the current implementation inventory; the original 0.1 architecture/PRD remain a design baseline.
 
-## 0.4 hybrid economic architecture
+## v0.5 execution evidence
+
+Commit `a2b1254` passed all seven jobs in [CI run 41870669068](https://github.com/dorkmatter69/contractGuard/actions/runs/41870669068): 15 Foundry tests, 103 passing Python/database tests in the PostgreSQL/DuckDB lane (one cross-layer skip), a separate real Anvil/PostgreSQL cross-layer test, plus Python 3.11–3.14 package/test jobs. The archived transaction/gas artifact is local Anvil only. Acceptance domain v2 explicitly binds validator address and settlement nonce; validators can permanently self-revoke. A read-only finalized settlement verifier and metadata-only deployment preflight are included.
+
+Base Sepolia remains undeployed. The proposed `contractguard-base-sepolia-test` keystore is absent and `BASE_SEPOLIA_RPC_URL` is unset. No key was read or created. See [v0.5 deployment gates](v0.5-validation.md). ZKP remains the subsequent experiment, not implemented acceptance.
+
+## 0.4 hybrid economic architecture (historical baseline)
 
 The owner selected rail-neutral authority with blockchain-native settlement as first-class, Stripe Billing for subscriptions, optional Stripe Connect, x402 and ERC-8004 future adapters. A separate Python monetary ledger now enforces per-rail/asset/payee mandate authority, attenuated child budgets and atomic ancestor reservations. Accepted exact artifacts can produce EIP-712 data. Authenticated economic endpoints expose these controls.
 
