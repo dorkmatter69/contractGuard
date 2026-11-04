@@ -2,6 +2,10 @@
 
 This file is the current implementation inventory; the original 0.1 architecture/PRD remain a design baseline.
 
+## Implemented in 0.3
+
+The owner selected a multi-tenant hosted service and Stripe. HostedApplication selects tenant only through token ownership and dispatches to a persistently bound, isolated database. Duplicate token ownership and foreign database bindings are refused. An optional Stripe TEST-MODE collection adapter creates unconfirmed PaymentIntents for accepted tickets, restricted to platform-provisioned tenant customers. Signed raw-body webhooks bind exact request/amount/customer/tenant/provider ID, deduplicate events and handle timeout/ordering recovery. Live keys are rejected. No external Stripe request has been made; provider transport uses fixtures in tests. See [hosted setup](hosted-and-stripe.md) and [ADR 0005](adr/0005-hosted-tenants-and-stripe.md).
+
 ## Implemented in 0.2
 
 - PostgreSQL dialect using Psycopg, BIGINT credit balances, BIGSERIAL receipt ordering, transaction-scoped advisory locking and transactional additive schema initialization. SQLite remains supported.
@@ -24,7 +28,7 @@ Standard-library tests execute locally. Optional database/analytics tests skip w
 3. Isolate agents and provider credentials; implement resource-specific policy and provider-enforced consumption limits.
 4. Isolate large validators; add independent measurement provenance, asynchronous claim/complete semantics and richer artifact storage.
 5. Implement backup/restore fencing, secret rotation procedures, telemetry, general migrations, lease renewal/reassignment and operational recovery drills. Schema v2 is additive only.
-6. Select live payment provider/network and monetary reconciliation semantics before building settlement. Credits are not money. Existing Payments backend remains disabled.
+6. Stripe is selected. Confirm customer billing versus supplier Connect requirements, verify test-account integration, implement confirmation/customer onboarding and monetary reconciliation before live use. Credits are not money. Generic settlement remains disabled.
 7. Select a specific computation/circuit, proving system, trusted setup/key custody and public statement schema before implementing ZKP. Existing verifier remains unavailable. No blockchain deployment exists.
 8. Select license, security contact and production support expectations before public release.
 

@@ -17,7 +17,7 @@ class Identity:
 
 
 class Application:
-    def __init__(self, guard, tenant, tokens, validators, max_body=65536):
+    def __init__(self, guard, tenant, tokens, validators, max_body=65536, billing=None):
         # tokens maps SHA256 token hashes to immutable identities; no raw tokens stored.
         if not tenant or not tokens or any(i.role not in ('operator', 'agent') for i in tokens.values()):
             raise ValueError('tenant and valid token identities required')
@@ -25,6 +25,7 @@ class Application:
             raise ValueError('agent identity required')
         self.guard, self.tenant, self.tokens = guard, tenant, dict(tokens)
         self.validators, self.max_body = dict(validators), max_body
+        self.billing = billing
         with guard.tx() as db:
             db.execute('INSERT INTO service_metadata(id,tenant) VALUES(1,?) ON CONFLICT DO NOTHING', (tenant,))
             configured = db.execute('SELECT tenant FROM service_metadata WHERE id=1').fetchone()
@@ -64,6 +65,10 @@ class Application:
                 g.cancel(body['ticket'])
             elif path == '/v1/reconcile':
                 g.reconcile(**body)
+            elif path == '/v1/billing/intents':
+                if self.billing is None:
+                    raise Denied('billing is disabled')
+                return self.billing.create(**body)
             elif path == '/v1/evidence':
                 return g.snapshot()
             else:

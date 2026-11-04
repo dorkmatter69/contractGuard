@@ -1,5 +1,7 @@
 # Deployment, API and databases
 
+For the selected multi-tenant hosted target and Stripe test billing, see [hosted configuration](hosted-and-stripe.md). This page retains the single-tenant development deployment instructions.
+
 ## Python setup
 
 ```sh

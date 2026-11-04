@@ -2,7 +2,7 @@
 
 Framework-independent governance and proof-carrying execution for agents.
 
-**Status: 0.2 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated, single-tenant WSGI API. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
+**Status: 0.3 development implementation; production release gates remain open.** No LLM, blockchain, ZKP prover, payment provider, PostgreSQL server, or DuckDB installation is required. This repository demonstrates governance logic under a trusted host and includes a bearer-authenticated WSGI API with a hosted multi-tenant router and isolated tenant databases. It does not sandbox agents. See [current status](docs/status.md) and [deployment](docs/deployment.md).
 
 ## What works
 
@@ -15,6 +15,7 @@ Framework-independent governance and proof-carrying execution for agents.
 - Assignment-bound API calls, one-use exact-action approvals, cancellation and confirmed-result reconciliation.
 - Optional PostgreSQL transactional backend and read-only DuckDB snapshot analytics (dependency-backed tests in CI).
 - Authenticated operator/agent API, HTTP client, container setup and HMAC evidence checkpoints.
+- Hosted tenant routing and optional Stripe test-mode customer billing with verified, deduplicated webhooks. See [hosted setup and Stripe boundaries](docs/hosted-and-stripe.md).
 - Fail-closed interfaces for future ZKP and payment providers.
 
 ## Quick start
@@ -69,7 +70,8 @@ Costs are integer **resource credits**, not USD. The trusted tool registry sets 
 | DeepSeek Harness | Normalized mandate admission, ticket creation, assignment mapping | Native TypeScript transport, authenticated event consumption, atomic import/recovery |
 | Deterministic proof | Exact artifact hash + versioned validator result | Independent validator service, signed portable attestations |
 | ZKP | Statement protocol + unavailable backend | Circuit, prover, verification key management and adversarial proof tests |
-| Payments / x402 | Protocol + explicitly disabled backend | Provider authorization, real ledger, idempotent settlement and reconciliation |
+| Stripe | Test-only unconfirmed PaymentIntent creation, exact request binding, signed webhook processing | Live sandbox verification, customer confirmation UI, refunds/disputes, monetary reconciliation |
+| Supplier settlement / x402 | Protocol + explicitly disabled backend | Stripe Connect model, provider authorization and monetary ledger |
 | Blockchain | Design boundary only | Escrow contracts, audits, chain replay protection and settlement integration |
 | PostgreSQL | Optional Psycopg backend; serialized transaction lock; additive schema setup | Live CI verification, operational backup/restore fencing, finer-grained locking |
 | DuckDB | Verified snapshot aggregation using an isolated in-memory database | Dependency-backed CI result, richer dashboard and telemetry |
