@@ -132,13 +132,17 @@ class EscrowBinding:
     mandate_hash: str
     validator_hash: str
     deadline: int
+    validator: str
+    settlement_nonce: int
 
     def typed_data(self, artifact_hash):
         if any(type(v) is not int or v <= 0 for v in (self.amount, self.expires, self.deadline)):
             raise ValueError('positive integer amount and deadlines required')
         if type(self.chain_id) is not int or self.chain_id not in (84532, 31337):
             raise ValueError('testnet/local chain required')
-        for address in (self.escrow, self.payee):
+        if type(self.settlement_nonce) is not int or self.settlement_nonce < 0:
+            raise ValueError('nonnegative settlement nonce required')
+        for address in (self.escrow, self.payee, self.validator):
             if not re.fullmatch(r'0x[0-9a-fA-F]{40}', address) or int(address[2:], 16) == 0:
                 raise ValueError('invalid address')
         if not self.asset.startswith(f'eip155:{self.chain_id}/erc20:'):
@@ -155,10 +159,10 @@ class EscrowBinding:
                 'EIP712Domain': fields([('name','string'), ('version','string'), ('chainId','uint256'),
                                        ('verifyingContract','address')]),
                 'Acceptance': fields([('taskId','bytes32'), ('mandateHash','bytes32'), ('artifactHash','bytes32'),
-                                      ('validatorHash','bytes32'), ('deadline','uint256')])},
+                                      ('validatorHash','bytes32'), ('validator','address'), ('settlementNonce','uint256'), ('deadline','uint256')])},
             'primaryType': 'Acceptance',
-            'domain': {'name': 'ContractGuardTaskEscrow', 'version': '1',
+            'domain': {'name': 'ContractGuardTaskEscrow', 'version': '2',
                        'chainId': self.chain_id, 'verifyingContract': self.escrow},
             'message': {'taskId': self.task_id, 'mandateHash': self.mandate_hash,
                         'artifactHash': artifact_hash, 'validatorHash': self.validator_hash,
-                        'deadline': self.deadline}}
+                        'validator': self.validator, 'settlementNonce': self.settlement_nonce, 'deadline': self.deadline}}

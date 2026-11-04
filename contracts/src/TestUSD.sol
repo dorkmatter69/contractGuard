@@ -23,11 +23,11 @@ contract TestUSD {
         emit Approval(msg.sender, spender, amount);
         return true;
     }
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(address to, uint256 amount) public virtual returns (bool) {
         move(msg.sender, to, amount);
         return true;
     }
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(address from, address to, uint256 amount) public virtual returns (bool) {
         allowance[from][msg.sender] -= amount;
         emit Approval(from, msg.sender, allowance[from][msg.sender]);
         move(from, to, amount);

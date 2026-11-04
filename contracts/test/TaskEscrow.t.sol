@@ -104,6 +104,36 @@ contract TaskEscrowTest {
         (bool twice,) = address(escrow).call(abi.encodeCall(TaskEscrow.refund, (id)));
         require(!twice, "double refund accepted");
     }
+    function testWrongSettlementNonce() public {
+        bytes32 id = fund(100);
+        bytes32 body = keccak256(abi.encode(
+            keccak256("Acceptance(bytes32 taskId,bytes32 mandateHash,bytes32 artifactHash,bytes32 validatorHash,address validator,uint256 settlementNonce,uint256 deadline)"),
+            id, MANDATE, ARTIFACT, VALIDATOR, vm.addr(KEY), uint256(999), uint256(1900)));
+        bytes32 wrongDigest = keccak256(abi.encodePacked("\x19\x01", escrow.domainSeparator(), body));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(KEY, wrongDigest);
+        require(!tryRelease(id, ARTIFACT, abi.encodePacked(r,s,v)), "wrong nonce settled");
+    }
+    function testRevokedValidatorCannotSettle() public {
+        bytes32 id = fund(100);
+        bytes memory sig = signature(id, KEY);
+        address validator = vm.addr(KEY);
+        vm.prank(validator);
+        escrow.revokeValidator();
+        require(!tryRelease(id, ARTIFACT, sig), "revoked validator settled");
+        vm.warp(2000);
+        vm.prank(payer);
+        escrow.refund(id);
+        require(token.balanceOf(payer) == 1000000, "revoked task not refundable");
+    }
+    function testUnauthorizedWithdrawalAndMissingTask() public {
+        bytes32 id = fund(100);
+        vm.warp(2000);
+        vm.prank(address(0xBAD));
+        (bool withdrawn,) = address(escrow).call(abi.encodeCall(TaskEscrow.refund, (id)));
+        require(!withdrawn, "unauthorized withdrawal");
+        require(token.balanceOf(address(escrow)) == 100, "funds lost");
+        require(!tryRelease(bytes32(uint256(42)), ARTIFACT, new bytes(65)), "missing task released");
+    }
     function testExpiredAcceptance() public {
         bytes32 id = fund(100);
         bytes memory sig = signature(id, KEY);

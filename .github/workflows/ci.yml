@@ -53,3 +53,36 @@ jobs:
           version: v1.3.1
       - run: forge build --sizes
       - run: forge test -vvv
+
+  cross-layer:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: contractguard_e2e
+          POSTGRES_USER: contractguard
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U contractguard"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      REQUIRE_CROSS_LAYER: '1'
+      CONTRACTGUARD_CROSS_LAYER_DATABASE: postgresql://contractguard:ci-only-password@localhost:5432/contractguard_e2e
+      CROSS_LAYER_REPORT: cross-layer-report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.3.1
+      - run: python -m pip install '.[postgres,e2e]'
+      - run: python -m unittest discover -s tests -p test_cross_layer.py -v
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-anvil-settlement-report
+          path: cross-layer-report.json
+          if-no-files-found: error

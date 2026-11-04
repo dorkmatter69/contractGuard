@@ -4,15 +4,14 @@ import unittest
 from urllib.parse import quote
 from uuid import uuid4
 from test_guard import GovernanceTests
+from test_economics import EconomicTests
 from tests_support import Fixture
 from contractguard import Guard
 from contractguard.evidence import analyze
 
 
-@unittest.skipUnless(os.environ.get('CONTRACTGUARD_TEST_POSTGRES'), 'PostgreSQL test URL not configured')
-class PostgresContractTests(GovernanceTests):
+class PostgresFixture:
     def setUp(self):
-        super().setUp()
         import psycopg
         from psycopg import sql
         base = os.environ['CONTRACTGUARD_TEST_POSTGRES']
@@ -23,12 +22,21 @@ class PostgresContractTests(GovernanceTests):
             with psycopg.connect(base, autocommit=True) as db:
                 db.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(schema)))
         self.addCleanup(cleanup)
-        url = base + ('&' if '?' in base else '?') + 'options=' + quote('-csearch_path=' + schema)
-        self.guard = Guard(url, [self.tool], lambda: self.now)
-        self.guard.issue(self.root)
+        self.database_url = base + ('&' if '?' in base else '?') + 'options=' + quote('-csearch_path=' + schema)
+        super().setUp()
 
 
-del GovernanceTests
+@unittest.skipUnless(os.environ.get('CONTRACTGUARD_TEST_POSTGRES'), 'PostgreSQL test URL not configured')
+class PostgresContractTests(PostgresFixture, GovernanceTests):
+    pass
+
+
+@unittest.skipUnless(os.environ.get('CONTRACTGUARD_TEST_POSTGRES'), 'PostgreSQL test URL not configured')
+class PostgresEconomicTests(PostgresFixture, EconomicTests):
+    pass
+
+
+del GovernanceTests, EconomicTests
 
 
 class DuckDBTests(Fixture):

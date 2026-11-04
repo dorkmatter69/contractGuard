@@ -11,7 +11,7 @@ class Fixture(unittest.TestCase):
         self.now = 100
         self.calls = []
         self.tool = Tool('run', 'v1', 3, self.run_tool)
-        self.guard = Guard(Path(self.tmp.name) / 'db', [self.tool], lambda: self.now)
+        self.guard = Guard(getattr(self, 'database_url', Path(self.tmp.name) / 'db'), [self.tool], lambda: self.now)
         self.root = Mandate('root', 'tenant', 'parent', ('run',), 9, 200)
         self.guard.issue(self.root)
 

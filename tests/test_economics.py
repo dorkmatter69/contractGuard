@@ -25,7 +25,7 @@ class EconomicTests(Fixture):
 
     def binding(self):
         return EscrowBinding(84532, '0x' + '56' * 20, '0x' + '78' * 32, self.asset, self.payee, 60, 180,
-                             '0x' + digest(self.root.__dict__), '0x' + digest('v1'), 170)
+                             '0x' + digest(self.root.__dict__), '0x' + digest('v1'), 170, '0x' + '9a' * 20, 0)
 
     def test_separate_money_and_resource_budgets(self):
         self.reserve()
@@ -72,6 +72,27 @@ class EconomicTests(Fixture):
         for change in ({'amount': 61}, {'asset': 'wrong'}, {'mandate_hash': '0x' + '11'*32},
                        {'deadline': 181}, {'validator_hash': '0x' + '22'*32}):
             with self.assertRaises(Denied): self.ledger.acceptance('order', replace(self.binding(), **change))
+
+    def test_explicit_validator_nonce_and_domain_version(self):
+        data = self.binding().typed_data('0x' + '11' * 32)
+        self.assertEqual(data['domain']['version'], '2')
+        self.assertEqual(data['message']['validator'], self.binding().validator)
+        self.assertEqual(data['message']['settlementNonce'], 0)
+        with self.assertRaises(ValueError):
+            replace(self.binding(), settlement_nonce=-1).typed_data('0x' + '11' * 32)
+
+    def test_revoked_mandate_cannot_prepare_acceptance(self):
+        self.reserve()
+        self.guard.submit('a', 'parent', {}, {'v1': lambda a: True})
+        self.guard.revoke('root')
+        with self.assertRaises(Denied): self.ledger.acceptance('order', self.binding())
+
+    def test_expired_mandate_cannot_prepare_acceptance(self):
+        self.reserve()
+        self.guard.submit('a', 'parent', {}, {'v1': lambda a: True})
+        self.now = 200
+        with self.assertRaisesRegex(Denied, 'expired'):
+            self.ledger.acceptance('order', self.binding())
 
     def test_mainnet_typed_data_refused(self):
         with self.assertRaises(ValueError): replace(self.binding(), chain_id=8453).typed_data('0x'+'11'*32)

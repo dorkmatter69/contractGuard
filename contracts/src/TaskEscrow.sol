@@ -21,21 +21,24 @@ contract TaskEscrow {
         bytes32 mandateHash;
         bytes32 validatorHash;
         State state;
+        uint256 settlementNonce;
     }
     IERC20 public immutable token;
     mapping(bytes32 => Task) public tasks;
     mapping(address => uint256) public nonces;
+    mapping(address => bool) public revokedValidators;
     uint256 private entered = 1;
     bytes32 private constant DOMAIN_TYPEHASH = keccak256(
         "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
     bytes32 private constant ACCEPT_TYPEHASH = keccak256(
-        "Acceptance(bytes32 taskId,bytes32 mandateHash,bytes32 artifactHash,bytes32 validatorHash,uint256 deadline)");
+        "Acceptance(bytes32 taskId,bytes32 mandateHash,bytes32 artifactHash,bytes32 validatorHash,address validator,uint256 settlementNonce,uint256 deadline)");
     uint256 private constant HALF_ORDER =
         0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
     event Funded(bytes32 indexed taskId, address indexed payer, address indexed payee,
                  uint256 amount, bytes32 mandateHash, bytes32 validatorHash, uint256 expires, address validator);
     event Released(bytes32 indexed taskId, bytes32 artifactHash, address indexed payee, uint256 amount);
+    event ValidatorRevoked(address indexed validator);
     event Refunded(bytes32 indexed taskId, address indexed payer, uint256 amount);
 
     modifier nonReentrant() {
@@ -56,8 +59,10 @@ contract TaskEscrow {
         require(payee != address(0) && payee != address(this) && validator != address(0), "invalid address");
         require(amount > 0 && expires > block.timestamp, "invalid terms");
         require(mandateHash != bytes32(0) && validatorHash != bytes32(0), "empty commitment");
-        id = keccak256(abi.encode(msg.sender, nonces[msg.sender]++));
-        tasks[id] = Task(msg.sender, payee, validator, amount, expires, mandateHash, validatorHash, State.Funded);
+        require(!revokedValidators[validator], "validator revoked");
+        uint256 nonce = nonces[msg.sender]++;
+        id = keccak256(abi.encode(msg.sender, nonce));
+        tasks[id] = Task(msg.sender, payee, validator, amount, expires, mandateHash, validatorHash, State.Funded, nonce);
         uint256 beforeBalance = token.balanceOf(address(this));
         safeCall(abi.encodeCall(IERC20.transferFrom, (msg.sender, address(this), amount)));
         require(token.balanceOf(address(this)) == beforeBalance + amount, "inexact funding");
@@ -66,13 +71,13 @@ contract TaskEscrow {
 
     function domainSeparator() public view returns (bytes32) {
         return keccak256(abi.encode(DOMAIN_TYPEHASH, keccak256("ContractGuardTaskEscrow"),
-            keccak256("1"), block.chainid, address(this)));
+            keccak256("2"), block.chainid, address(this)));
     }
 
     function acceptanceDigest(bytes32 id, bytes32 artifactHash, uint256 deadline) public view returns (bytes32) {
         Task storage task = tasks[id];
         bytes32 body = keccak256(abi.encode(ACCEPT_TYPEHASH, id, task.mandateHash,
-            artifactHash, task.validatorHash, deadline));
+            artifactHash, task.validatorHash, task.validator, task.settlementNonce, deadline));
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), body));
     }
 
@@ -81,6 +86,7 @@ contract TaskEscrow {
         external nonReentrant {
         Task storage task = tasks[id];
         require(task.state == State.Funded, "not funded");
+        require(!revokedValidators[task.validator], "validator revoked");
         require(block.timestamp < task.expires && block.timestamp <= deadline && deadline <= task.expires,
                 "expired acceptance");
         require(artifactHash != bytes32(0) && signature.length == 65, "invalid evidence");
@@ -108,6 +114,13 @@ contract TaskEscrow {
         task.state = State.Refunded;
         safeCall(abi.encodeCall(IERC20.transfer, (task.payer, task.amount)));
         emit Refunded(id, task.payer, task.amount);
+    }
+
+    /// @notice A validator can permanently disable its own key for this escrow.
+    /// @dev Already-funded tasks then await expiry/refund. No payer veto or key rotation.
+    function revokeValidator() external {
+        revokedValidators[msg.sender] = true;
+        emit ValidatorRevoked(msg.sender);
     }
 
     function safeCall(bytes memory data) private {
